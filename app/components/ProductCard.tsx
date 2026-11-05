@@ -3,18 +3,12 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { Product } from "./data/products";
-import {
-  BarcodeIcon,
-  CopyIcon,
-  CheckIcon,
-  EyeIcon,
-  PlusIcon,
-  MinusIcon,
-} from "./icons";
+import { CopyIcon, CheckIcon, PlusIcon, MinusIcon } from "./icons";
+import { money, marginPercent, type Currency } from "./format";
 
 interface ProductCardProps {
   product: Product;
-  currency: "INR" | "GBP";
+  currency: Currency;
   onSelectProduct: (p: Product) => void;
   onAddCases: (product: Product, cases: number) => void;
   orderQuantity: number;
@@ -37,165 +31,130 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     setTimeout(() => setCopied(false), 1600);
   };
 
+  const unitPrice = currency === "INR" ? product.wholesaleInr : product.wholesaleGbp;
+  const unitMrp = currency === "INR" ? product.mrpInr : product.mrpGbp;
   const casePrice =
     currency === "INR"
       ? product.wholesaleInr * product.unitsPerCase
       : Math.round(product.wholesaleGbp * product.unitsPerCase * 100) / 100;
-
-  const unitMrp = currency === "INR" ? `₹${product.mrpInr}` : `£${product.mrpGbp.toFixed(2)}`;
-  const unitWholesale =
-    currency === "INR" ? `₹${product.wholesaleInr}` : `£${product.wholesaleGbp.toFixed(2)}`;
-  const displayCasePrice =
-    currency === "INR" ? `₹${casePrice.toLocaleString()}` : `£${casePrice.toFixed(2)}`;
-
-  const marginPercent = Math.round(
-    ((product.mrpInr - product.wholesaleInr) / product.mrpInr) * 100
-  );
+  const margin = marginPercent(product.mrpInr, product.wholesaleInr);
 
   return (
-    <div
+    <article
       onClick={() => onSelectProduct(product)}
-      className="group relative bg-white rounded-xl border border-zinc-200/80 overflow-hidden hover:border-zinc-300 hover:shadow-xs transition duration-200 flex flex-col cursor-pointer"
+      className="group relative bg-white rounded-3xl border border-line p-3 flex flex-col cursor-pointer transition duration-200 hover:-translate-y-0.5 hover:shadow-lift hover:border-transparent"
     >
-      {/* Top Meta Bar */}
-      <div className="p-3 pb-2 flex items-center justify-between text-[11px] text-zinc-500">
-        <span className="font-mono uppercase tracking-wider text-[10px] text-zinc-400">
-          {product.brand}
-        </span>
-        <div className="flex items-center gap-1.5 font-mono text-[10px]">
-          <span className="text-zinc-600 font-medium">
-            {product.inStockCases} cases
-          </span>
-          <span className="text-zinc-300">•</span>
-          <span className="text-zinc-400">{product.sku}</span>
-        </div>
-      </div>
-
-      {/* Product Image Frame */}
-      <div className="relative aspect-square w-full bg-zinc-50/50 border-y border-zinc-100 flex items-center justify-center p-6 overflow-hidden">
-        <div className="relative w-full h-full group-hover:scale-102 transition duration-300">
+      {/* Image */}
+      <div className="relative aspect-square w-full rounded-2xl bg-cream overflow-hidden">
+        <div className="absolute inset-6 transition duration-300 group-hover:scale-105">
           <Image
             src={product.image}
             alt={product.name}
             fill
-            className="object-contain"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="object-contain mix-blend-multiply"
+            sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
           />
         </div>
 
-        {/* Specs quick button on hover */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelectProduct(product);
-          }}
-          className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1 bg-white/95 text-zinc-800 text-[11px] font-medium px-2.5 py-1 rounded-md shadow-2xs border border-zinc-200"
-        >
-          <EyeIcon className="w-3.5 h-3.5 text-zinc-500" />
-          <span>Technical Specs</span>
-        </button>
+        <span className="absolute top-3 left-3 rounded-full bg-leaf-600 text-white text-xs font-semibold px-2.5 py-1">
+          {margin}% margin
+        </span>
+        {product.fastMoving && (
+          <span className="absolute top-3 right-3 rounded-full bg-white/95 text-ink text-xs font-medium px-2.5 py-1 shadow-soft">
+            Best seller
+          </span>
+        )}
+
+        <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-ink/85 text-white text-xs font-medium px-3 py-1.5 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition">
+          View details
+        </span>
       </div>
 
-      {/* Info Body */}
-      <div className="p-4 flex-1 flex flex-col justify-between space-y-4">
+      {/* Body */}
+      <div className="px-2 pt-4 pb-1 flex-1 flex flex-col gap-4">
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-xs text-zinc-500">
-            <span className="font-mono text-[11px] text-zinc-700 font-medium bg-zinc-100 px-1.5 py-0.2 rounded">
-              {product.packing}
-            </span>
-            <span className="text-[10px] font-medium text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded">
-              +{marginPercent}% Margin
-            </span>
-          </div>
-
-          <h3 className="text-sm font-medium text-zinc-950 group-hover:text-zinc-700 transition line-clamp-2 leading-snug">
+          <p className="text-xs font-medium text-leaf-700">{product.brand}</p>
+          <h3 className="text-base font-semibold text-ink leading-snug line-clamp-2">
             {product.name}
           </h3>
-
-          {/* Barcode line */}
-          <div className="flex items-center justify-between pt-1">
-            <span className="font-mono text-[11px] text-zinc-400">
-              EAN {product.barcode}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-stone-500">
+            <span>{product.packing}</span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-leaf-500" />
+              <span className="tabular">{product.inStockCases}</span> cases in stock
             </span>
-            <button
-              type="button"
-              onClick={copyBarcode}
-              title="Copy Barcode"
-              className="text-zinc-400 hover:text-zinc-800 p-0.5 rounded transition"
-            >
-              {copied ? (
-                <CheckIcon className="w-3.5 h-3.5 text-emerald-600" />
-              ) : (
-                <CopyIcon className="w-3.5 h-3.5" />
-              )}
-            </button>
           </div>
         </div>
 
-        {/* Pricing & Case Adder */}
-        <div className="pt-3 border-t border-zinc-100 space-y-2.5">
-          <div className="flex items-baseline justify-between">
+        <div className="mt-auto space-y-3">
+          <div className="flex items-end justify-between gap-2">
             <div>
-              <p className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider">
-                Case ({product.unitsPerCase} units)
+              <p className="tabular text-2xl font-semibold text-ink leading-none">
+                {money(casePrice, currency)}
+                <span className="text-sm font-normal text-stone-500"> / case</span>
               </p>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-base font-semibold text-zinc-950 font-mono">
-                  {displayCasePrice}
-                </span>
-                <span className="text-xs text-zinc-500 font-normal">
-                  ({unitWholesale}/ea)
-                </span>
-              </div>
+              <p className="tabular text-sm text-stone-500 mt-1.5">
+                {product.unitsPerCase} × {money(unitPrice, currency)}
+                <span className="text-stone-400"> · MRP {money(unitMrp, currency)}</span>
+              </p>
             </div>
-
-            <p className="text-xs text-zinc-400 line-through">
-              MRP {unitMrp}
-            </p>
           </div>
 
-          {/* Action Row */}
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="flex items-center gap-2 pt-1"
-          >
-            <div className="flex items-center border border-zinc-200 rounded-md bg-zinc-50">
+          <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-2">
+            <div className="flex items-center rounded-full bg-cream border border-line">
               <button
                 type="button"
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:bg-zinc-200/60 rounded-l-md transition"
+                aria-label="Fewer cases"
+                className="w-9 h-9 flex items-center justify-center text-stone-600 hover:text-ink rounded-full transition"
               >
-                <MinusIcon className="w-3 h-3" />
+                <MinusIcon className="w-3.5 h-3.5" />
               </button>
-              <span className="w-7 text-center font-mono text-xs font-medium text-zinc-900">
+              <span className="tabular w-6 text-center text-sm font-semibold text-ink">
                 {quantity}
               </span>
               <button
                 type="button"
                 onClick={() => setQuantity((q) => q + 1)}
-                className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:bg-zinc-200/60 rounded-r-md transition"
+                aria-label="More cases"
+                className="w-9 h-9 flex items-center justify-center text-stone-600 hover:text-ink rounded-full transition"
               >
-                <PlusIcon className="w-3 h-3" />
+                <PlusIcon className="w-3.5 h-3.5" />
               </button>
             </div>
 
             <button
               type="button"
               onClick={() => onAddCases(product, quantity)}
-              className="flex-1 py-1.5 px-3 bg-zinc-950 hover:bg-zinc-800 text-white rounded-md text-xs font-medium transition"
+              className="flex-1 h-10 px-4 bg-ink hover:bg-leaf-700 text-white rounded-full text-sm font-semibold transition"
             >
-              Add {quantity} {quantity === 1 ? "Case" : "Cases"}
+              Add {quantity} {quantity === 1 ? "case" : "cases"}
             </button>
           </div>
 
-          {orderQuantity > 0 && (
-            <p className="text-[11px] font-mono text-zinc-500 text-center">
-              ✓ {orderQuantity} cases added to PO
-            </p>
-          )}
+          <div className="flex items-center justify-between text-xs text-stone-400 min-h-5">
+            <button
+              type="button"
+              onClick={copyBarcode}
+              title="Copy barcode"
+              className="tabular inline-flex items-center gap-1.5 hover:text-ink transition"
+            >
+              {copied ? (
+                <CheckIcon className="w-3.5 h-3.5 text-leaf-600" />
+              ) : (
+                <CopyIcon className="w-3.5 h-3.5" />
+              )}
+              {copied ? "Copied" : `EAN ${product.barcode}`}
+            </button>
+            {orderQuantity > 0 && (
+              <span className="inline-flex items-center gap-1 font-medium text-leaf-700">
+                <CheckIcon className="w-3.5 h-3.5" />
+                {orderQuantity} in order
+              </span>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </article>
   );
 };
