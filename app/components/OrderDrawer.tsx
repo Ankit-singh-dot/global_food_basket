@@ -5,7 +5,6 @@ import Image from "next/image";
 import { PRODUCTS, Product } from "./data/products";
 import {
   XIcon,
-  ShoppingBagIcon,
   PlusIcon,
   MinusIcon,
   DownloadIcon,
@@ -13,6 +12,8 @@ import {
   CheckIcon,
   BoxIcon,
 } from "./icons";
+import { money, type Currency } from "./format";
+import { useDismiss } from "./useDismiss";
 
 interface OrderDrawerProps {
   isOpen: boolean;
@@ -20,7 +21,7 @@ interface OrderDrawerProps {
   orderItems: Record<string, number>;
   onUpdateQuantity: (productId: string, cases: number) => void;
   onClearOrder: () => void;
-  currency: "INR" | "GBP";
+  currency: Currency;
 }
 
 export const OrderDrawer: React.FC<OrderDrawerProps> = ({
@@ -34,9 +35,11 @@ export const OrderDrawer: React.FC<OrderDrawerProps> = ({
   const [copied, setCopied] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  useDismiss(isOpen, onClose);
+
   if (!isOpen) return null;
 
-  const activeEntries = Object.entries(orderItems).filter(([_, qty]) => qty > 0);
+  const activeEntries = Object.entries(orderItems).filter(([, qty]) => qty > 0);
   const itemsWithProduct = activeEntries
     .map(([id, qty]) => {
       const prod = PRODUCTS.find((p) => p.id === id);
@@ -130,9 +133,7 @@ export const OrderDrawer: React.FC<OrderDrawerProps> = ({
           `[${product.sku}] ${product.name} (${product.packing}) × ${qty} Cases (EAN: ${product.barcode})`
       ),
       "-------------------------------------------",
-      `Estimated Subtotal: ${
-        currency === "INR" ? `₹${finalTotal.toLocaleString()}` : `£${finalTotal.toFixed(2)}`
-      }`,
+      `Estimated Subtotal: ${money(finalTotal, currency)}`,
     ].join("\n");
 
     navigator.clipboard.writeText(text);
@@ -141,66 +142,76 @@ export const OrderDrawer: React.FC<OrderDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-black/40 backdrop-blur-xs flex justify-end animate-in fade-in duration-150">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 overflow-hidden bg-ink/40 backdrop-blur-sm flex justify-end"
+    >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Your order"
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col border-l border-zinc-200"
+        className="w-full max-w-md bg-white h-full shadow-lift flex flex-col sm:rounded-l-[2rem] overflow-hidden"
       >
         {/* Header */}
-        <div className="p-4 sm:p-5 bg-white border-b border-zinc-200 flex items-center justify-between">
+        <div className="px-6 pt-6 pb-4 flex items-start justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-zinc-950">
-              Wholesale Purchase Order
-            </h3>
-            <p className="text-[11px] font-mono text-zinc-400 mt-0.5">
-              {totalCases} Cases • {totalUnits} Units
+            <h3 className="text-2xl font-semibold text-ink">Your order</h3>
+            <p className="tabular text-sm text-stone-500 mt-0.5">
+              {totalCases} {totalCases === 1 ? "case" : "cases"} · {totalUnits.toLocaleString("en-IN")} units
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-zinc-400 hover:text-zinc-950 p-1 rounded-md transition"
+            aria-label="Close"
+            className="w-10 h-10 flex items-center justify-center rounded-full border border-line text-stone-500 hover:text-ink transition"
           >
             <XIcon className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Pallet Gauge */}
-        <div className="bg-zinc-50 px-5 py-3 border-b border-zinc-200/80 text-xs">
-          <div className="flex items-center justify-between font-mono text-[11px] text-zinc-700 mb-1.5">
-            <span>Pallet Utilization</span>
-            <span>{totalCases} / {palletCapacity} Cases ({palletProgress}%)</span>
+        {/* Pallet progress */}
+        <div className="mx-6 mb-2 rounded-2xl bg-cream px-4 py-3.5">
+          <div className="flex items-center justify-between text-sm mb-2">
+            <span className="font-medium text-ink">Pallet filled</span>
+            <span className="tabular text-stone-500">
+              {totalCases} / {palletCapacity} cases
+            </span>
           </div>
-          <div className="w-full h-1.5 bg-zinc-200 rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-white rounded-full overflow-hidden">
             <div
-              className="h-full bg-zinc-950 rounded-full transition-all duration-300"
+              className="h-full bg-leaf-500 rounded-full transition-all duration-300"
               style={{ width: `${palletProgress}%` }}
             />
           </div>
-          <p className="text-[11px] text-zinc-500 mt-1.5 flex items-center justify-between">
-            <span>Standard: 48 cases</span>
-            {totalCases < 48 ? (
-              <span className="text-zinc-600 font-mono">
-                {48 - totalCases} cases to 12% pallet tier
+          <p className="text-sm mt-2">
+            {totalCases >= palletCapacity ? (
+              <span className="text-leaf-700 font-medium">✓ Full pallet: 12% off applied</span>
+            ) : totalCases >= 11 ? (
+              <span className="text-stone-600">
+                <span className="text-leaf-700 font-medium">5% off applied.</span> Add{" "}
+                <span className="tabular">{palletCapacity - totalCases}</span> more for 12% off.
               </span>
             ) : (
-              <span className="text-emerald-700 font-medium">
-                ✓ 12% Pallet Discount Applied
+              <span className="text-stone-600">
+                Add <span className="tabular">{Math.max(0, 11 - totalCases)}</span> more{" "}
+                {11 - totalCases === 1 ? "case" : "cases"} to save 5%.
               </span>
             )}
           </p>
         </div>
 
-        {/* Items List */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 divide-y divide-zinc-100">
+        {/* Items */}
+        <div className="flex-1 overflow-y-auto px-6 divide-y divide-line">
           {itemsWithProduct.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-8 text-zinc-400 space-y-2">
-              <BoxIcon className="w-6 h-6 text-zinc-300" />
-              <p className="font-medium text-zinc-700 text-xs">
-                Your purchase order is empty
-              </p>
-              <p className="text-[11px] text-zinc-400 max-w-xs">
-                Add cases from the product catalog to assemble a trade consignment.
+            <div className="h-full flex flex-col items-center justify-center text-center py-12 space-y-2">
+              <span className="flex items-center justify-center w-14 h-14 rounded-full bg-cream text-stone-400">
+                <BoxIcon className="w-6 h-6" />
+              </span>
+              <p className="font-semibold text-ink pt-2">Your order is empty</p>
+              <p className="text-sm text-stone-500 max-w-xs">
+                Add cases from the range to start building your order.
               </p>
             </div>
           ) : (
@@ -212,58 +223,50 @@ export const OrderDrawer: React.FC<OrderDrawerProps> = ({
               const lineTotal = casePrice * qty;
 
               return (
-                <div key={product.id} className="py-3.5 first:pt-0 flex gap-3 items-center">
-                  <div className="relative w-12 h-12 rounded-md bg-zinc-50 border border-zinc-200 p-1 shrink-0 overflow-hidden">
+                <div key={product.id} className="py-4 flex gap-3 items-center">
+                  <div className="relative w-16 h-16 rounded-2xl bg-cream shrink-0 overflow-hidden">
                     <Image
                       src={product.image}
-                      alt={product.name}
+                      alt=""
                       fill
-                      className="object-contain p-0.5"
+                      sizes="64px"
+                      className="object-contain p-1.5 mix-blend-multiply"
                     />
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-zinc-950 truncate">
+                    <p className="text-sm font-semibold text-ink line-clamp-2 leading-snug">
                       {product.name}
                     </p>
-                    <p className="text-[11px] font-mono text-zinc-400">
-                      {product.packing} • {product.sku}
+                    <p className="tabular text-xs text-stone-500 mt-0.5">
+                      {product.packing} · {money(casePrice, currency)} / case
                     </p>
-                    <p className="text-[11px] font-mono font-medium text-zinc-700 mt-0.5">
-                      {currency === "INR"
-                        ? `₹${casePrice.toLocaleString()}`
-                        : `£${casePrice.toFixed(2)}`}
-                      <span className="text-zinc-400 font-normal"> / case</span>
-                    </p>
-                  </div>
-
-                  {/* Quantity Stepper */}
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center border border-zinc-200 rounded-md bg-zinc-50">
-                      <button
-                        type="button"
-                        onClick={() => onUpdateQuantity(product.id, qty - 1)}
-                        className="w-6 h-6 flex items-center justify-center text-zinc-600 hover:bg-zinc-200 transition"
-                      >
-                        <MinusIcon className="w-3 h-3" />
-                      </button>
-                      <span className="w-6 text-center font-mono text-xs font-medium text-zinc-900">
-                        {qty}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => onUpdateQuantity(product.id, qty + 1)}
-                        className="w-6 h-6 flex items-center justify-center text-zinc-600 hover:bg-zinc-200 transition"
-                      >
-                        <PlusIcon className="w-3 h-3" />
-                      </button>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <div className="flex items-center rounded-full bg-cream border border-line">
+                        <button
+                          type="button"
+                          onClick={() => onUpdateQuantity(product.id, qty - 1)}
+                          aria-label="Fewer cases"
+                          className="w-8 h-8 flex items-center justify-center text-stone-600 hover:text-ink transition"
+                        >
+                          <MinusIcon className="w-3 h-3" />
+                        </button>
+                        <span className="tabular w-6 text-center text-sm font-semibold text-ink">
+                          {qty}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => onUpdateQuantity(product.id, qty + 1)}
+                          aria-label="More cases"
+                          className="w-8 h-8 flex items-center justify-center text-stone-600 hover:text-ink transition"
+                        >
+                          <PlusIcon className="w-3 h-3" />
+                        </button>
+                      </div>
+                      <p className="tabular text-sm font-semibold text-ink">
+                        {money(lineTotal, currency)}
+                      </p>
                     </div>
-
-                    <p className="w-16 text-right text-xs font-semibold text-zinc-950 font-mono">
-                      {currency === "INR"
-                        ? `₹${lineTotal.toLocaleString()}`
-                        : `£${lineTotal.toFixed(2)}`}
-                    </p>
                   </div>
                 </div>
               );
@@ -271,67 +274,26 @@ export const OrderDrawer: React.FC<OrderDrawerProps> = ({
           )}
         </div>
 
-        {/* Footer */}
+        {/* Summary */}
         {itemsWithProduct.length > 0 && (
-          <div className="p-4 sm:p-5 bg-zinc-50 border-t border-zinc-200 space-y-3 font-mono text-xs">
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-zinc-500 font-sans">
-                <span>Subtotal ({totalCases} cases)</span>
-                <span className="font-mono text-zinc-900">
-                  {currency === "INR"
-                    ? `₹${rawSubtotal.toLocaleString()}`
-                    : `£${rawSubtotal.toFixed(2)}`}
-                </span>
+          <div className="p-6 bg-cream border-t border-line space-y-4">
+            <div className="space-y-1.5 text-sm">
+              <div className="flex items-center justify-between text-stone-600">
+                <span>Subtotal</span>
+                <span className="tabular">{money(rawSubtotal, currency)}</span>
               </div>
-
               {discountRate > 0 && (
-                <div className="flex items-center justify-between text-emerald-700 font-sans">
-                  <span>Volume Discount ({(discountRate * 100).toFixed(0)}%)</span>
-                  <span className="font-mono">
-                    -{currency === "INR"
-                      ? `₹${Math.round(discountAmount).toLocaleString()}`
-                      : `£${discountAmount.toFixed(2)}`}
-                  </span>
+                <div className="flex items-center justify-between text-leaf-700 font-medium">
+                  <span>Volume discount ({(discountRate * 100).toFixed(0)}%)</span>
+                  <span className="tabular">−{money(discountAmount, currency)}</span>
                 </div>
               )}
-
-              <div className="flex items-center justify-between text-zinc-950 font-semibold text-sm pt-2 border-t border-zinc-200 font-sans">
-                <span>Estimated Total</span>
-                <span className="font-mono text-base">
-                  {currency === "INR"
-                    ? `₹${Math.round(finalTotal).toLocaleString()}`
-                    : `£${finalTotal.toFixed(2)}`}
+              <div className="flex items-center justify-between pt-2 text-ink">
+                <span className="font-semibold">Estimated total</span>
+                <span className="tabular text-2xl font-semibold">
+                  {money(finalTotal, currency)}
                 </span>
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 pt-1 font-sans">
-              <button
-                type="button"
-                onClick={handleExportCSV}
-                className="inline-flex items-center justify-center gap-1.5 py-1.5 px-3 bg-white hover:bg-zinc-100 text-zinc-800 text-xs font-medium rounded-md border border-zinc-200 transition"
-              >
-                <DownloadIcon className="w-3.5 h-3.5 text-zinc-500" />
-                <span>Export CSV</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleCopySummary}
-                className="inline-flex items-center justify-center gap-1.5 py-1.5 px-3 bg-white hover:bg-zinc-100 text-zinc-800 text-xs font-medium rounded-md border border-zinc-200 transition"
-              >
-                {copied ? (
-                  <>
-                    <CheckIcon className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Copied</span>
-                  </>
-                ) : (
-                  <>
-                    <CopyIcon className="w-3.5 h-3.5 text-zinc-500" />
-                    <span>Copy Summary</span>
-                  </>
-                )}
-              </button>
             </div>
 
             <button
@@ -340,18 +302,42 @@ export const OrderDrawer: React.FC<OrderDrawerProps> = ({
                 setSubmitted(true);
                 setTimeout(() => setSubmitted(false), 2600);
               }}
-              className="w-full py-2 px-4 bg-zinc-950 hover:bg-zinc-800 text-white rounded-md font-medium text-xs sm:text-sm transition font-sans"
+              className="w-full h-12 px-4 bg-leaf-600 hover:bg-leaf-700 text-white rounded-full font-semibold transition shadow-soft"
             >
-              {submitted ? "✓ Order Submitted to Despatch Team" : "Submit Wholesale Order"}
+              {submitted ? "✓ Order sent to our team" : "Place order"}
             </button>
 
-            <button
-              type="button"
-              onClick={onClearOrder}
-              className="w-full text-center text-[11px] text-zinc-400 hover:text-zinc-600 font-sans"
-            >
-              Clear Order
-            </button>
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={handleExportCSV}
+                  className="inline-flex items-center gap-1.5 text-stone-600 hover:text-ink transition"
+                >
+                  <DownloadIcon className="w-4 h-4" />
+                  Download CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCopySummary}
+                  className="inline-flex items-center gap-1.5 text-stone-600 hover:text-ink transition"
+                >
+                  {copied ? (
+                    <CheckIcon className="w-4 h-4 text-leaf-600" />
+                  ) : (
+                    <CopyIcon className="w-4 h-4" />
+                  )}
+                  {copied ? "Copied" : "Copy summary"}
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={onClearOrder}
+                className="text-stone-400 hover:text-red-600 transition"
+              >
+                Clear
+              </button>
+            </div>
           </div>
         )}
       </div>
