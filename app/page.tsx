@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useRef } from "react";
-import { PRODUCTS, Product, CATEGORIES } from "./components/data/products";
+import { PRODUCTS, Product, CATEGORIES, MASTER_TRADE_SHEETS } from "./components/data/products";
 import { Header } from "./components/Header";
 import { HeroBanner } from "./components/HeroBanner";
 import { FilterSidebar } from "./components/FilterSidebar";
@@ -12,13 +12,27 @@ import { OrderDrawer } from "./components/OrderDrawer";
 import { FlyerModal } from "./components/FlyerModal";
 import { WholesaleInfo } from "./components/WholesaleInfo";
 import { Footer } from "./components/Footer";
-import {
-  GridIcon,
-  ListIcon,
-  SearchIcon,
-  XIcon,
-  FileTextIcon,
-} from "./components/icons";
+import { GridIcon, ListIcon, XIcon, FileTextIcon, ArrowRightIcon } from "./components/icons";
+import type { Currency } from "./components/format";
+
+type SortKey = "featured" | "price-asc" | "price-desc" | "stock-desc" | "margin-desc";
+
+const FilterChip: React.FC<{ label: React.ReactNode; onRemove: () => void }> = ({
+  label,
+  onRemove,
+}) => (
+  <span className="inline-flex items-center gap-1.5 text-sm bg-white text-ink pl-3 pr-1.5 py-1 rounded-full border border-line">
+    {label}
+    <button
+      type="button"
+      onClick={onRemove}
+      aria-label="Remove filter"
+      className="p-0.5 rounded-full text-stone-400 hover:text-ink hover:bg-sand transition"
+    >
+      <XIcon className="w-3.5 h-3.5" />
+    </button>
+  </span>
+);
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -28,19 +42,17 @@ export default function Home() {
   const [selectedPackaging, setSelectedPackaging] = useState<string[]>([]);
   const [onlyFastMoving, setOnlyFastMoving] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
-  const [currency, setCurrency] = useState<"INR" | "GBP">("INR");
-  const [sortBy, setSortBy] = useState<
-    "featured" | "price-asc" | "price-desc" | "stock-desc" | "margin-desc"
-  >("featured");
+  const [currency, setCurrency] = useState<Currency>("INR");
+  const [sortBy, setSortBy] = useState<SortKey>("featured");
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isOrderDrawerOpen, setIsOrderDrawerOpen] = useState(false);
   const [isFlyersModalOpen, setIsFlyersModalOpen] = useState(false);
 
   const [orderItems, setOrderItems] = useState<Record<string, number>>({
-    "gfb-001": 2, // 2 cases × ₹360 = ₹720
-    "gfb-008": 1, // 1 case × ₹684 = ₹684
-    "gfb-013": 2, // 2 cases × ₹624 = ₹1,248
+    "gfb-001": 2,
+    "gfb-008": 1,
+    "gfb-013": 2,
   });
 
   const catalogRef = useRef<HTMLDivElement>(null);
@@ -180,8 +192,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-zinc-50/50 text-zinc-950 font-sans selection:bg-zinc-200 selection:text-zinc-900">
-      {/* 1. Header */}
+    <div className="min-h-screen flex flex-col bg-cream text-ink font-sans">
       <Header
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
@@ -193,277 +204,228 @@ export default function Home() {
         onOpenFlyersModal={() => setIsFlyersModalOpen(true)}
       />
 
-      {/* 2. Sleek Editorial Category Sub-Navigation */}
-      <div className="bg-white border-b border-zinc-200/80 overflow-x-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-1 sm:gap-2 py-2 whitespace-nowrap text-xs font-medium">
-          {CATEGORIES.map((cat) => {
-            const isSelected = selectedCategory === cat;
-            return (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => {
-                  setSelectedCategory(cat);
-                  scrollToCatalog();
-                }}
-                className={`px-3 py-1.5 rounded-md transition ${
-                  isSelected
-                    ? "bg-zinc-950 text-white font-semibold"
-                    : "text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100"
-                }`}
-              >
-                {cat}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 3. Hero Section */}
       <HeroBanner
         onScrollToCatalog={scrollToCatalog}
         onOpenOrderDrawer={() => setIsOrderDrawerOpen(true)}
         onOpenFlyersModal={() => setIsFlyersModalOpen(true)}
       />
 
-      {/* 4. Main Catalog Section */}
       <main
         ref={catalogRef}
-        className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-10"
+        className="flex-1 w-full bg-white/60 border-t border-line scroll-mt-28"
       >
-        <div className="flex flex-col lg:flex-row gap-8 items-start">
-          {/* Left Faceted Filters */}
-          <FilterSidebar
-            products={PRODUCTS}
-            selectedCategory={selectedCategory}
-            setSelectedCategory={setSelectedCategory}
-            selectedBrand={selectedBrand}
-            setSelectedBrand={setSelectedBrand}
-            selectedDietary={selectedDietary}
-            toggleDietary={toggleDietary}
-            selectedPackaging={selectedPackaging}
-            togglePackaging={togglePackaging}
-            onlyFastMoving={onlyFastMoving}
-            setOnlyFastMoving={setOnlyFastMoving}
-            onReset={handleResetFilters}
-            activeFilterCount={activeFilterCount}
-          />
-
-          {/* Right Catalog View */}
-          <div className="flex-1 w-full space-y-4">
-            {/* Header Control Bar */}
-            <div className="bg-white p-4 rounded-xl border border-zinc-200/80 flex flex-wrap items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-14">
+          {/* Section heading + category pills */}
+          <div className="space-y-6 mb-10">
+            <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
-                <h3 className="text-base font-semibold text-zinc-950">
-                  {selectedCategory === "All Lines"
-                    ? "Wholesale Product Catalog"
-                    : selectedCategory}
-                </h3>
-                <p className="text-xs text-zinc-500 font-mono mt-0.5">
-                  {filteredProducts.length} of {PRODUCTS.length} SKUs available
+                <p className="font-script text-2xl text-leaf-600">Our range</p>
+                <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-ink">
+                  {selectedCategory === "All Lines" ? "Shop by the case" : selectedCategory}
+                </h2>
+                <p className="text-stone-500 mt-1">
+                  Showing <span className="tabular">{filteredProducts.length}</span> of{" "}
+                  <span className="tabular">{PRODUCTS.length}</span> products
                 </p>
               </div>
 
-              {/* View Switcher & Sorting */}
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5 text-xs text-zinc-500 font-mono">
-                  <span className="hidden sm:inline">Sort:</span>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
-                    className="bg-zinc-50 border border-zinc-200 text-zinc-800 rounded-md py-1 px-2.5 text-xs font-sans font-medium focus:outline-hidden"
-                  >
-                    <option value="featured">Featured First</option>
-                    <option value="price-asc">Case Rate: Low to High</option>
-                    <option value="price-desc">Case Rate: High to Low</option>
-                    <option value="stock-desc">Stock: High to Low</option>
-                    <option value="margin-desc">Margin %: High to Low</option>
-                  </select>
-                </div>
+              <div className="flex items-center gap-2">
+                <label className="sr-only" htmlFor="sort">
+                  Sort products
+                </label>
+                <select
+                  id="sort"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortKey)}
+                  className="bg-white border border-line text-ink rounded-full py-2.5 pl-4 pr-8 text-sm font-medium focus:outline-hidden focus:ring-4 focus:ring-leaf-100 focus:border-leaf-400"
+                >
+                  <option value="featured">Featured</option>
+                  <option value="price-asc">Price: low to high</option>
+                  <option value="price-desc">Price: high to low</option>
+                  <option value="stock-desc">Most in stock</option>
+                  <option value="margin-desc">Best margin</option>
+                </select>
 
-                {/* Grid / Table Toggle */}
-                <div className="inline-flex rounded-md p-0.5 bg-zinc-100 border border-zinc-200">
-                  <button
-                    type="button"
-                    onClick={() => setViewMode("grid")}
-                    className={`p-1.5 rounded transition ${
-                      viewMode === "grid"
-                        ? "bg-white text-zinc-950 shadow-2xs"
-                        : "text-zinc-500 hover:text-zinc-800"
-                    }`}
-                    title="Grid View"
-                  >
-                    <GridIcon className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode("table")}
-                    className={`p-1.5 rounded transition ${
-                      viewMode === "table"
-                        ? "bg-white text-zinc-950 shadow-2xs"
-                        : "text-zinc-500 hover:text-zinc-800"
-                    }`}
-                    title="Table View"
-                  >
-                    <ListIcon className="w-3.5 h-3.5" />
-                  </button>
+                <div className="inline-flex rounded-full p-1 bg-white border border-line">
+                  {(
+                    [
+                      ["grid", GridIcon, "Grid view"],
+                      ["table", ListIcon, "List view"],
+                    ] as const
+                  ).map(([mode, Icon, label]) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setViewMode(mode)}
+                      aria-pressed={viewMode === mode}
+                      title={label}
+                      className={`p-2 rounded-full transition ${
+                        viewMode === mode
+                          ? "bg-ink text-white"
+                          : "text-stone-500 hover:text-ink"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
 
-            {/* Active Filters */}
-            {activeFilterCount > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-xs">
-                <span className="text-[11px] text-zinc-400 font-mono">Filters:</span>
-                {selectedCategory !== "All Lines" && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-zinc-100 text-zinc-800 px-2 py-0.5 rounded border border-zinc-200">
-                    {selectedCategory}
-                    <button
-                      type="button"
-                      onClick={() => setSelectedCategory("All Lines")}
-                      className="hover:text-zinc-950"
-                    >
-                      <XIcon className="w-3 h-3" />
-                    </button>
-                  </span>
-                )}
-                {selectedBrand !== "All Brands" && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-zinc-100 text-zinc-800 px-2 py-0.5 rounded border border-zinc-200">
-                    {selectedBrand}
-                    <button
-                      type="button"
-                      onClick={() => setSelectedBrand("All Brands")}
-                      className="hover:text-zinc-950"
-                    >
-                      <XIcon className="w-3 h-3" />
-                    </button>
-                  </span>
-                )}
-                {selectedDietary.map((tag) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center gap-1 text-[11px] font-medium bg-zinc-100 text-zinc-800 px-2 py-0.5 rounded border border-zinc-200"
+            <div className="no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 flex gap-2 overflow-x-auto">
+              {CATEGORIES.map((cat) => {
+                const isSelected = selectedCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat)}
+                    aria-pressed={isSelected}
+                    className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition ${
+                      isSelected
+                        ? "bg-leaf-600 border-leaf-600 text-white"
+                        : "bg-white border-line text-stone-600 hover:border-leaf-300 hover:text-ink"
+                    }`}
                   >
-                    {tag}
-                    <button
-                      type="button"
-                      onClick={() => toggleDietary(tag)}
-                      className="hover:text-zinc-950"
-                    >
-                      <XIcon className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
-                {selectedPackaging.map((type) => (
-                  <span
-                    key={type}
-                    className="inline-flex items-center gap-1 text-[11px] font-medium bg-zinc-100 text-zinc-800 px-2 py-0.5 rounded border border-zinc-200"
+                    {cat === "All Lines" ? "All products" : cat}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-col lg:flex-row gap-8 items-start">
+            <FilterSidebar
+              products={PRODUCTS}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              selectedBrand={selectedBrand}
+              setSelectedBrand={setSelectedBrand}
+              selectedDietary={selectedDietary}
+              toggleDietary={toggleDietary}
+              selectedPackaging={selectedPackaging}
+              togglePackaging={togglePackaging}
+              onlyFastMoving={onlyFastMoving}
+              setOnlyFastMoving={setOnlyFastMoving}
+              onReset={handleResetFilters}
+              activeFilterCount={activeFilterCount}
+            />
+
+            <div className="flex-1 w-full space-y-6">
+              {activeFilterCount > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {selectedCategory !== "All Lines" && (
+                    <FilterChip
+                      label={selectedCategory}
+                      onRemove={() => setSelectedCategory("All Lines")}
+                    />
+                  )}
+                  {selectedBrand !== "All Brands" && (
+                    <FilterChip
+                      label={selectedBrand}
+                      onRemove={() => setSelectedBrand("All Brands")}
+                    />
+                  )}
+                  {selectedDietary.map((tag) => (
+                    <FilterChip key={tag} label={tag} onRemove={() => toggleDietary(tag)} />
+                  ))}
+                  {selectedPackaging.map((type) => (
+                    <FilterChip key={type} label={type} onRemove={() => togglePackaging(type)} />
+                  ))}
+                  {onlyFastMoving && (
+                    <FilterChip label="Best sellers" onRemove={() => setOnlyFastMoving(false)} />
+                  )}
+                  {searchQuery && (
+                    <FilterChip
+                      label={<>&ldquo;{searchQuery}&rdquo;</>}
+                      onRemove={() => setSearchQuery("")}
+                    />
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="text-sm font-medium text-leaf-700 hover:text-leaf-900 px-2"
                   >
-                    {type}
-                    <button
-                      type="button"
-                      onClick={() => togglePackaging(type)}
-                      className="hover:text-zinc-950"
-                    >
-                      <XIcon className="w-3 h-3" />
-                    </button>
+                    Clear all
+                  </button>
+                </div>
+              )}
+
+              {filteredProducts.length === 0 ? (
+                <div className="bg-white rounded-3xl border border-line px-6 py-16 text-center">
+                  <p className="font-script text-3xl text-leaf-600">Hmm…</p>
+                  <p className="text-lg font-semibold text-ink mt-1">
+                    Nothing matches those filters
+                  </p>
+                  <p className="text-stone-500 mt-1 max-w-sm mx-auto">
+                    Try a different search or clear a few filters.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="mt-6 px-5 py-2.5 rounded-full bg-ink text-white text-sm font-semibold hover:bg-leaf-700 transition"
+                  >
+                    Show all products
+                  </button>
+                </div>
+              ) : viewMode === "grid" ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                  {filteredProducts.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      currency={currency}
+                      onSelectProduct={setSelectedProduct}
+                      onAddCases={handleAddCases}
+                      orderQuantity={orderItems[product.id] || 0}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <ProductTableView
+                  products={filteredProducts}
+                  currency={currency}
+                  onSelectProduct={setSelectedProduct}
+                  onAddCases={handleAddCases}
+                  orderItems={orderItems}
+                />
+              )}
+
+              <div className="rounded-3xl bg-leaf-50 border border-leaf-100 p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
+                <div className="flex items-start gap-4">
+                  <span className="flex items-center justify-center w-12 h-12 rounded-2xl bg-white text-leaf-600 shrink-0">
+                    <FileTextIcon className="w-5 h-5" />
                   </span>
-                ))}
-                {searchQuery && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-zinc-100 text-zinc-800 px-2 py-0.5 rounded border border-zinc-200">
-                    &ldquo;{searchQuery}&rdquo;
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery("")}
-                      className="hover:text-zinc-950"
-                    >
-                      <XIcon className="w-3 h-3" />
-                    </button>
-                  </span>
-                )}
+                  <div>
+                    <p className="text-lg font-semibold text-ink">Prefer a printed price list?</p>
+                    <p className="text-stone-600 mt-0.5">
+                      See our {MASTER_TRADE_SHEETS.length} trade sheets with pack sizes, barcodes and carton details.
+                    </p>
+                  </div>
+                </div>
                 <button
                   type="button"
-                  onClick={handleResetFilters}
-                  className="text-[11px] text-zinc-500 hover:text-zinc-950 underline ml-1"
+                  onClick={() => setIsFlyersModalOpen(true)}
+                  className="group inline-flex items-center gap-2 px-5 py-3 bg-white hover:bg-ink hover:text-white text-ink rounded-full text-sm font-semibold shrink-0 border border-leaf-200 hover:border-ink transition"
                 >
-                  Clear all
+                  View price lists
+                  <ArrowRightIcon className="w-4 h-4 transition group-hover:translate-x-0.5" />
                 </button>
               </div>
-            )}
-
-            {/* Catalog Grid or Table */}
-            {filteredProducts.length === 0 ? (
-              <div className="bg-white rounded-xl border border-zinc-200/80 p-12 text-center space-y-2">
-                <p className="text-xs font-medium text-zinc-900">
-                  No products match the selected criteria
-                </p>
-                <p className="text-xs text-zinc-500 max-w-sm mx-auto">
-                  Try clearing your search query or reset your filter parameters.
-                </p>
-                <button
-                  type="button"
-                  onClick={handleResetFilters}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-zinc-950 text-white text-xs font-medium hover:bg-zinc-800 transition mt-2"
-                >
-                  Reset filters
-                </button>
-              </div>
-            ) : viewMode === "grid" ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                {filteredProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    currency={currency}
-                    onSelectProduct={setSelectedProduct}
-                    onAddCases={handleAddCases}
-                    orderQuantity={orderItems[product.id] || 0}
-                  />
-                ))}
-              </div>
-            ) : (
-              <ProductTableView
-                products={filteredProducts}
-                currency={currency}
-                onSelectProduct={setSelectedProduct}
-                onAddCases={handleAddCases}
-                orderItems={orderItems}
-              />
-            )}
-
-            {/* Bottom Callout to Master Trade Sheets */}
-            <div className="p-4 rounded-xl bg-zinc-100 border border-zinc-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
-              <div className="space-y-0.5 text-center sm:text-left">
-                <p className="font-semibold text-zinc-950">
-                  Primary Manufacturer Trade Releases
-                </p>
-                <p className="text-zinc-500">
-                  Inspect the 4 master trade sheets containing original packing dimensions, barcodes, and master shipper specifications.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsFlyersModalOpen(true)}
-                className="px-3.5 py-1.5 bg-white hover:bg-zinc-50 text-zinc-900 rounded-md font-medium shrink-0 border border-zinc-200 shadow-2xs transition"
-              >
-                View Trade Sheets →
-              </button>
             </div>
           </div>
         </div>
       </main>
 
-      {/* 5. Wholesale Narrative */}
       <WholesaleInfo />
 
-      {/* 6. Footer */}
       <Footer
         onOpenFlyersModal={() => setIsFlyersModalOpen(true)}
         onOpenOrderDrawer={() => setIsOrderDrawerOpen(true)}
       />
 
-      {/* 7. Technical Specs Modal */}
       <ProductModal
+        key={selectedProduct?.id}
         product={selectedProduct}
         onClose={() => setSelectedProduct(null)}
         currency={currency}
@@ -471,14 +433,12 @@ export default function Home() {
         orderQuantity={selectedProduct ? orderItems[selectedProduct.id] || 0 : 0}
       />
 
-      {/* 8. Master Trade Sheets Modal */}
       <FlyerModal
         isOpen={isFlyersModalOpen}
         onClose={() => setIsFlyersModalOpen(false)}
         onSelectProduct={(p) => setSelectedProduct(p)}
       />
 
-      {/* 9. Order Drawer */}
       <OrderDrawer
         isOpen={isOrderDrawerOpen}
         onClose={() => setIsOrderDrawerOpen(false)}
