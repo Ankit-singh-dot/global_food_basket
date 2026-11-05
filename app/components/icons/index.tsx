@@ -173,3 +173,24 @@ export const LayersIcon: React.FC<IconProps> = ({ className = "w-4 h-4", size = 
   </svg>
 );
 
+
+export const LeafIcon: React.FC<IconProps> = ({ className = "w-4 h-4", size = 16, ...props }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} {...props}>
+    <path d="M20.5 3.5c-7.6-.4-13.4 2.3-15.3 7.5-1 2.7-.6 5.3.6 7.2-1 1-1.8 2-2.3 2.9a.75.75 0 1 0 1.3.75c.5-.8 1.2-1.7 2-2.6 1.9 1.3 4.6 1.6 7.2.6 5.2-1.9 7.7-7.5 7.3-15.6a.75.75 0 0 0-.8-.75Zm-11 10.6a.75.75 0 0 1-.05-1.06c2.1-2.3 4.4-4 6.8-5.1a.75.75 0 1 1 .62 1.37c-2.2 1-4.3 2.6-6.3 4.75a.75.75 0 0 1-1.06.05Z" />
+  </svg>
+);
+
+export const GlobeIcon: React.FC<IconProps> = ({ className = "w-4 h-4", size = 16, ...props }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+    <path d="M2 12h20" />
+  </svg>
+);
+
+export const ArrowRightIcon: React.FC<IconProps> = ({ className = "w-4 h-4", size = 16, ...props }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
+    <path d="M5 12h14" />
+    <path d="m12 5 7 7-7 7" />
+  </svg>
+);
