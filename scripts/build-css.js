@@ -35,50 +35,63 @@ async function run() {
   const baseCss = `
 @import "tailwindcss";
 
-:root {
-  --background: #fafafa;
-  --foreground: #18181b;
-  --card: #ffffff;
-  --card-foreground: #18181b;
-  --popover: #ffffff;
-  --popover-foreground: #18181b;
-  --primary: #18181b;
-  --primary-foreground: #fafafa;
-  --secondary: #f4f4f5;
-  --secondary-foreground: #18181b;
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a;
-  --accent: #f4f4f5;
-  --accent-foreground: #18181b;
-  --destructive: #ef4444;
-  --destructive-foreground: #fafafa;
-  --border: #e4e4e7;
-  --input: #e4e4e7;
-  --ring: #18181b;
+@theme {
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-script: var(--font-dancing), "Brush Script MT", cursive;
+
+  --color-ink: #161616;
+  --color-cream: #faf7f0;
+  --color-sand: #f2ede2;
+  --color-line: #e8e1d3;
+
+  --color-leaf-50: #f2f8ec;
+  --color-leaf-100: #e2f0d4;
+  --color-leaf-200: #c6e2a8;
+  --color-leaf-300: #a2cf76;
+  --color-leaf-400: #7fbb4c;
+  --color-leaf-500: #63a535;
+  --color-leaf-600: #4d8a27;
+  --color-leaf-700: #3d6d21;
+  --color-leaf-800: #33571f;
+  --color-leaf-900: #2b491d;
+
+  --shadow-soft: 0 1px 2px rgb(22 22 22 / 0.04), 0 10px 30px -14px rgb(22 22 22 / 0.18);
+  --shadow-lift: 0 2px 4px rgb(22 22 22 / 0.05), 0 22px 44px -18px rgb(22 22 22 / 0.28);
 }
 
 body {
-  background-color: #fafafa;
-  color: #18181b;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: #faf7f0;
+  color: #161616;
+  font-family: var(--font-sans);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: "tnum" 0;
 }
 
-/* Custom subtle scrollbar */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #d4d4d8;
+  background: #ddd5c4;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #a1a1aa;
+  background: #c4b9a3;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
 }
 `;
 
