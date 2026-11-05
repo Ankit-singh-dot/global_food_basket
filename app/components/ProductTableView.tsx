@@ -3,16 +3,12 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { Product } from "./data/products";
-import {
-  CopyIcon,
-  CheckIcon,
-  EyeIcon,
-  BoxIcon,
-} from "./icons";
+import { CopyIcon, CheckIcon, PlusIcon } from "./icons";
+import { money, marginPercent, type Currency } from "./format";
 
 interface ProductTableViewProps {
   products: Product[];
-  currency: "INR" | "GBP";
+  currency: Currency;
   onSelectProduct: (p: Product) => void;
   onAddCases: (product: Product, cases: number) => void;
   orderItems: Record<string, number>;
@@ -35,159 +31,114 @@ export const ProductTableView: React.FC<ProductTableViewProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-zinc-200/80 overflow-hidden shadow-2xs">
+    <div className="bg-white rounded-3xl border border-line overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs border-collapse">
+        <table className="w-full text-left text-sm border-collapse">
           <thead>
-            <tr className="bg-zinc-50/70 border-b border-zinc-200/80 text-zinc-400 font-mono uppercase text-[10px] tracking-wider">
-              <th className="py-2.5 px-3 pl-4">Item &amp; Description</th>
-              <th className="py-2.5 px-3">SKU</th>
-              <th className="py-2.5 px-3">Packing</th>
-              <th className="py-2.5 px-3">EAN Barcode</th>
-              <th className="py-2.5 px-3">Stock</th>
-              <th className="py-2.5 px-3">Case Rate</th>
-              <th className="py-2.5 px-3">Unit MRP</th>
-              <th className="py-2.5 px-3">Margin</th>
-              <th className="py-2.5 px-3 pr-4 text-right">Order Action</th>
+            <tr className="bg-cream text-stone-500 text-xs font-medium">
+              <th className="py-3 px-4 pl-5 font-medium">Product</th>
+              <th className="py-3 px-4 font-medium">Pack</th>
+              <th className="py-3 px-4 font-medium">Barcode</th>
+              <th className="py-3 px-4 font-medium text-right">In stock</th>
+              <th className="py-3 px-4 font-medium text-right">Case price</th>
+              <th className="py-3 px-4 font-medium text-right">MRP</th>
+              <th className="py-3 px-4 font-medium text-right">Margin</th>
+              <th className="py-3 px-4 pr-5" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100">
+          <tbody className="divide-y divide-line">
             {products.map((product) => {
               const casePrice =
                 currency === "INR"
                   ? product.wholesaleInr * product.unitsPerCase
                   : Math.round(product.wholesaleGbp * product.unitsPerCase * 100) / 100;
-              const displayCasePrice =
-                currency === "INR"
-                  ? `₹${casePrice.toLocaleString()}`
-                  : `£${casePrice.toFixed(2)}`;
-              const displayUnitWholesale =
-                currency === "INR"
-                  ? `₹${product.wholesaleInr}`
-                  : `£${product.wholesaleGbp.toFixed(2)}`;
-              const displayUnitMrp =
-                currency === "INR"
-                  ? `₹${product.mrpInr}`
-                  : `£${product.mrpGbp.toFixed(2)}`;
-              const margin = Math.round(
-                ((product.mrpInr - product.wholesaleInr) / product.mrpInr) * 100
-              );
+              const unitPrice = currency === "INR" ? product.wholesaleInr : product.wholesaleGbp;
+              const unitMrp = currency === "INR" ? product.mrpInr : product.mrpGbp;
               const inOrder = orderItems[product.id] || 0;
 
               return (
                 <tr
                   key={product.id}
                   onClick={() => onSelectProduct(product)}
-                  className="hover:bg-zinc-50/60 transition cursor-pointer group"
+                  className="hover:bg-cream/60 transition cursor-pointer group"
                 >
-                  {/* Image & Title */}
-                  <td className="py-2.5 px-3 pl-4">
-                    <div className="flex items-center gap-3 max-w-sm">
-                      <div className="relative w-10 h-10 rounded-md bg-zinc-50 border border-zinc-200/70 p-1 shrink-0 overflow-hidden">
+                  <td className="py-3 px-4 pl-5">
+                    <div className="flex items-center gap-3 min-w-64">
+                      <div className="relative w-12 h-12 rounded-xl bg-cream shrink-0 overflow-hidden">
                         <Image
                           src={product.image}
-                          alt={product.name}
+                          alt=""
                           fill
-                          className="object-contain p-0.5"
+                          sizes="48px"
+                          className="object-contain p-1 mix-blend-multiply"
                         />
                       </div>
                       <div>
-                        <p className="font-medium text-zinc-900 group-hover:text-zinc-600 transition line-clamp-1">
+                        <p className="font-semibold text-ink group-hover:text-leaf-700 transition line-clamp-1">
                           {product.name}
                         </p>
-                        <p className="text-[11px] text-zinc-400 font-mono">
-                          {product.brand} • {product.category}
+                        <p className="text-xs text-stone-500">
+                          {product.brand} · {product.sku}
                         </p>
                       </div>
                     </div>
                   </td>
 
-                  {/* SKU */}
-                  <td className="py-2.5 px-3 font-mono text-[11px] text-zinc-600">
-                    {product.sku}
+                  <td className="py-3 px-4 text-stone-600 whitespace-nowrap">{product.packing}</td>
+
+                  <td className="py-3 px-4">
+                    <button
+                      type="button"
+                      onClick={(e) => handleCopyBarcode(product.barcode, product.id, e)}
+                      title="Copy barcode"
+                      className="tabular inline-flex items-center gap-1.5 text-xs text-stone-500 hover:text-ink transition"
+                    >
+                      {product.barcode}
+                      {copiedId === product.id ? (
+                        <CheckIcon className="w-3.5 h-3.5 text-leaf-600" />
+                      ) : (
+                        <CopyIcon className="w-3.5 h-3.5 text-stone-400" />
+                      )}
+                    </button>
                   </td>
 
-                  {/* Packing */}
-                  <td className="py-2.5 px-3 font-mono text-[11px] text-zinc-700">
-                    {product.packing}
+                  <td className="tabular py-3 px-4 text-right text-stone-700 whitespace-nowrap">
+                    {product.inStockCases} cases
                   </td>
 
-                  {/* Barcode */}
-                  <td className="py-2.5 px-3">
-                    <div className="flex items-center gap-1 font-mono text-[11px] text-zinc-500">
-                      <span>{product.barcode}</span>
-                      <button
-                        type="button"
-                        onClick={(e) =>
-                          handleCopyBarcode(product.barcode, product.id, e)
-                        }
-                        className="text-zinc-400 hover:text-zinc-800 p-0.5 rounded"
-                        title="Copy Barcode"
-                      >
-                        {copiedId === product.id ? (
-                          <CheckIcon className="w-3 h-3 text-emerald-600" />
-                        ) : (
-                          <CopyIcon className="w-3 h-3" />
-                        )}
-                      </button>
-                    </div>
+                  <td className="tabular py-3 px-4 text-right whitespace-nowrap">
+                    <span className="font-semibold text-ink block">{money(casePrice, currency)}</span>
+                    <span className="text-xs text-stone-400">{money(unitPrice, currency)} each</span>
                   </td>
 
-                  {/* Stock */}
-                  <td className="py-2.5 px-3 font-mono text-zinc-800">
-                    {product.inStockCases} cs
+                  <td className="tabular py-3 px-4 text-right text-stone-500">
+                    {money(unitMrp, currency)}
                   </td>
 
-                  {/* Case Price */}
-                  <td className="py-2.5 px-3 font-mono">
-                    <span className="font-semibold text-zinc-950 block">
-                      {displayCasePrice}
-                    </span>
-                    <span className="text-[10px] text-zinc-400">
-                      {displayUnitWholesale}/ea
+                  <td className="py-3 px-4 text-right">
+                    <span className="tabular inline-block rounded-full bg-leaf-50 text-leaf-700 text-xs font-semibold px-2.5 py-1">
+                      {marginPercent(product.mrpInr, product.wholesaleInr)}%
                     </span>
                   </td>
 
-                  {/* Unit MRP */}
-                  <td className="py-2.5 px-3 font-mono text-zinc-500">
-                    {displayUnitMrp}
-                  </td>
-
-                  {/* Margin */}
-                  <td className="py-2.5 px-3">
-                    <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                      +{margin}%
-                    </span>
-                  </td>
-
-                  {/* Actions */}
-                  <td className="py-2.5 px-3 pr-4 text-right">
+                  <td className="py-3 px-4 pr-5 text-right">
                     <div
                       onClick={(e) => e.stopPropagation()}
                       className="inline-flex items-center gap-2 justify-end"
                     >
-                      <button
-                        type="button"
-                        onClick={() => onSelectProduct(product)}
-                        className="p-1 text-zinc-400 hover:text-zinc-800 transition"
-                        title="View Technical Specs"
-                      >
-                        <EyeIcon className="w-3.5 h-3.5" />
-                      </button>
-
+                      {inOrder > 0 && (
+                        <span className="tabular text-xs font-medium text-leaf-700 whitespace-nowrap">
+                          {inOrder} in order
+                        </span>
+                      )}
                       <button
                         type="button"
                         onClick={() => onAddCases(product, 1)}
-                        className="px-2.5 py-1 bg-zinc-950 hover:bg-zinc-800 text-white rounded-md text-xs font-medium transition"
+                        className="inline-flex items-center gap-1 px-3.5 py-2 bg-ink hover:bg-leaf-700 text-white rounded-full text-xs font-semibold transition whitespace-nowrap"
                       >
-                        +1 Case
+                        <PlusIcon className="w-3 h-3" />
+                        Add case
                       </button>
-
-                      {inOrder > 0 && (
-                        <span className="font-mono text-[10px] text-zinc-600 bg-zinc-100 px-1.5 py-0.5 rounded border border-zinc-200">
-                          {inOrder} in PO
-                        </span>
-                      )}
                     </div>
                   </td>
                 </tr>
