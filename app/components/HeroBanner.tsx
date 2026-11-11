@@ -1,334 +1,194 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
 import Image from "next/image";
-import { PRODUCTS, CATEGORIES } from "./data/products";
-import {
-  ArrowRightIcon,
-  BoxIcon,
-  DownloadIcon,
-  GlobeIcon,
-  LeafIcon,
-  ShieldCheckIcon,
-  SparklesIcon,
-  TruckIcon,
-} from "./icons";
+import { PRODUCTS, type Product } from "./data/products";
+import { money, type Currency } from "./format";
+import { ArrowRightIcon } from "./icons";
 
 interface HeroBannerProps {
+  currency: Currency;
   onScrollToCatalog: () => void;
-  onOpenOrderDrawer: () => void;
   onOpenFlyersModal: () => void;
+  onSelectProduct: (product: Product) => void;
 }
 
-const casesInStock = PRODUCTS.reduce((sum, p) => sum + p.inStockCases, 0);
-const featured = PRODUCTS.filter((p) => p.featured).slice(0, 6);
-const orbit = PRODUCTS.filter((p) => !p.featured).slice(0, 4);
-const marqueeItems = [
-  ...CATEGORIES.filter((c) => c !== "All Lines"),
-  "Halal certified",
-  "Festive tins",
-  "Master shippers 24×",
-  "Display SRP boxes",
-  "Zero trans fat",
+/**
+ * Packs that stand on the hero shelf, left → right.
+ * Cut-outs live in /public/hero (white background removed, captions cropped).
+ */
+const SHELF: { id: string; src: string; w: number; h: number; height: number; tag?: string }[] = [
+  { id: "gfb-020", src: "/hero/black-sesame-oatmeal-180g.png", w: 243, h: 312, height: 176 },
+  { id: "gfb-015", src: "/hero/blueberry-filling-box-120g.png", w: 203, h: 348, height: 204 },
+  { id: "gfb-004", src: "/hero/danish-butter-red-tin.png", w: 283, h: 231, height: 118, tag: "Festive" },
+  { id: "gfb-001", src: "/hero/choc-cream-150g.png", w: 297, h: 372, height: 186 },
+  { id: "gfb-002", src: "/hero/danish-butter-150g.png", w: 301, h: 372, height: 186 },
+  { id: "gfb-014", src: "/hero/strawberry-filling-box-120g.png", w: 206, h: 340, height: 204 },
+  { id: "gfb-005", src: "/hero/danish-butter-blue-tin.png", w: 269, h: 231, height: 118 },
+  { id: "gfb-016", src: "/hero/pineapple-filling-box-120g.png", w: 203, h: 349, height: 204 },
 ];
 
-/** Counts up from 0 to `target` once the element scrolls into view. */
-function useCountUp(target: number, duration = 1400) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const [value, setValue] = useState(0);
+const byId = new Map(PRODUCTS.map((p) => [p.id, p]));
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const ms = reduce ? 0 : duration;
-    let raf = 0;
-    const obs = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting) return;
-      obs.disconnect();
-      const start = performance.now();
-      const tick = (now: number) => {
-        const t = ms === 0 ? 1 : Math.min(1, (now - start) / ms);
-        setValue(Math.round(target * (1 - Math.pow(1 - t, 3))));
-        if (t < 1) raf = requestAnimationFrame(tick);
-      };
-      raf = requestAnimationFrame(tick);
-    });
-    obs.observe(el);
-    return () => {
-      obs.disconnect();
-      cancelAnimationFrame(raf);
-    };
-  }, [target, duration]);
+/* ── EAN-13: renders a real, scannable barcode from the product's barcode digits ── */
+const L = ["0001101", "0011001", "0010011", "0111101", "0100011", "0110001", "0101111", "0111011", "0110111", "0001011"];
+const R = L.map((c) => c.replace(/./g, (b) => (b === "0" ? "1" : "0")));
+const G = R.map((c) => c.split("").reverse().join(""));
+const PARITY = ["LLLLLL", "LLGLGG", "LLGGLG", "LLGGGL", "LGLLGG", "LGGLLG", "LGGGLL", "LGLGLG", "LGLGGL", "LGGLGL"];
 
-  return { ref, value };
+function ean13Modules(code: string): string | null {
+  if (!/^\d{13}$/.test(code)) return null;
+  const d = code.split("").map(Number);
+  const parity = PARITY[d[0]];
+  let bits = "101";
+  for (let i = 1; i <= 6; i++) bits += parity[i - 1] === "L" ? L[d[i]] : G[d[i]];
+  bits += "01010";
+  for (let i = 7; i <= 12; i++) bits += R[d[i]];
+  return bits + "101";
 }
 
-const Stat: React.FC<{ target: number; suffix?: string; prefix?: string; label: string }> = ({
-  target,
-  suffix = "",
-  prefix = "",
-  label,
-}) => {
-  const { ref, value } = useCountUp(target);
+const Barcode: React.FC<{ code: string }> = ({ code }) => {
+  const bits = ean13Modules(code);
+  if (!bits) return null;
   return (
-    <div className="px-5 py-4 first:pl-0">
-      <dd className="tabular text-3xl font-semibold text-ink tracking-tight">
-        {prefix}
-        <span ref={ref}>{value.toLocaleString("en-IN")}</span>
-        {suffix}
-      </dd>
-      <dt className="text-xs text-stone-500 mt-1">{label}</dt>
-    </div>
+    <svg viewBox={`0 0 ${bits.length} 20`} preserveAspectRatio="none" className="h-5 w-full" aria-hidden>
+      {bits.split("").map((b, i) => (b === "1" ? <rect key={i} x={i} width="1" height="20" fill="currentColor" /> : null))}
+    </svg>
   );
 };
 
+const casePrice = (p: Product, currency: Currency) =>
+  currency === "INR" ? p.wholesaleInr * p.unitsPerCase : Math.round(p.wholesaleGbp * p.unitsPerCase * 100) / 100;
+
 export const HeroBanner: React.FC<HeroBannerProps> = ({
+  currency,
   onScrollToCatalog,
-  onOpenOrderDrawer,
   onOpenFlyersModal,
+  onSelectProduct,
 }) => {
-  const [active, setActive] = useState(0);
-  const [paused, setPaused] = useState(false);
-
-  useEffect(() => {
-    if (paused || featured.length < 2) return;
-    const id = setInterval(() => setActive((i) => (i + 1) % featured.length), 3200);
-    return () => clearInterval(id);
-  }, [paused]);
-
-  const current = featured[active];
+  const items = SHELF.flatMap((s) => {
+    const product = byId.get(s.id);
+    return product ? [{ ...s, product }] : [];
+  });
 
   return (
-    <section className="relative overflow-hidden">
-      {/* background: soft glows + dotted grid */}
-      <div className="pointer-events-none absolute inset-0 hero-dots opacity-60" />
-      <div className="pointer-events-none absolute -top-48 right-[-10%] w-[640px] h-[640px] rounded-full bg-leaf-200/50 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-56 -left-40 w-[520px] h-[520px] rounded-full bg-amber-100/70 blur-3xl" />
+    <section className="relative overflow-hidden border-b border-line">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        {/* catalogue meta row */}
+        <div className="flex items-center justify-between gap-4 border-b border-ink/10 py-3 text-[11px] font-medium uppercase tracking-[0.18em] text-stone-500">
+          <span>Trade catalogue · 2026/27</span>
+          <span className="hidden sm:inline">{PRODUCTS.length} lines · Luton, UK</span>
+        </div>
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-10 pb-14 sm:pt-14 sm:pb-20">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-          {/* ───────────── Copy ───────────── */}
-          <div className="lg:col-span-7 space-y-8 hero-rise">
-            <button
-              type="button"
-              onClick={onOpenFlyersModal}
-              className="group inline-flex items-center gap-2 rounded-full border border-leaf-200 bg-white/80 backdrop-blur pl-1.5 pr-4 py-1.5 text-sm text-stone-700 shadow-soft hover:border-leaf-400 transition"
-            >
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-leaf-600 text-white px-2.5 py-0.5 text-xs font-semibold">
-                <span className="relative flex w-1.5 h-1.5">
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-white opacity-75 animate-ping" />
-                  <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-white" />
-                </span>
-                New
-              </span>
-              Festive tin season is here — 2026 price lists
-              <ArrowRightIcon className="w-3.5 h-3.5 text-leaf-600 transition group-hover:translate-x-0.5" />
-            </button>
+        {/* headline + intro */}
+        <div className="pt-10 sm:pt-12 space-y-8">
+          <h1 className="font-semibold text-ink tracking-[-0.045em] leading-[0.95] text-[2.75rem] sm:text-7xl lg:text-[5.5rem] xl:text-[6.25rem] shelf-in">
+            Biscuits by the case,
+            <br />
+            from around the{" "}
+            <span className="font-script font-bold tracking-normal text-leaf-600 text-[1.12em] leading-none">
+              globe
+            </span>
+            .
+          </h1>
 
-            <div className="space-y-6">
-              <h1 className="text-[2.5rem] sm:text-6xl lg:text-[3.75rem] xl:text-[4.1rem] font-semibold tracking-[-0.03em] text-ink leading-[1.02]">
-                Biscuits &amp; treats from
-                <br className="hidden sm:block" /> around the{" "}
-                <span className="relative inline-block whitespace-nowrap">
-                  <span className="font-script font-bold text-leaf-600 text-[1.2em] leading-none">globe</span>
-                  <svg
-                    aria-hidden
-                    viewBox="0 0 200 20"
-                    preserveAspectRatio="none"
-                    className="absolute left-0 -bottom-2 w-full h-3 text-leaf-400"
-                  >
-                    <path
-                      d="M3 14 C 50 4, 120 2, 197 9"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="5"
-                      strokeLinecap="round"
-                      className="hero-draw"
-                    />
-                  </svg>
-                </span>
-                ,
-                <br />
-                <span className="text-stone-400">by the case.</span>
-              </h1>
-              <p className="text-lg text-stone-600 max-w-xl leading-relaxed">
-                Butter cookies, festive tins, cream biscuits and oat crackers for grocers,
-                cash &amp; carries and distributors — from a single case to a full container.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 shelf-in [animation-delay:80ms]">
+            <p className="text-[1.05rem] text-stone-600 leading-relaxed max-w-lg">
+              Butter cookies, festive tins, cream biscuits and oat crackers for grocers,
+              cash &amp; carries and distributors. Order one case or fill a container.
+            </p>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
               <button
                 type="button"
                 onClick={onScrollToCatalog}
-                className="group relative inline-flex items-center gap-2 overflow-hidden px-7 py-4 bg-ink hover:bg-leaf-700 text-white text-sm font-semibold rounded-full transition shadow-lift"
+                className="group inline-flex items-center gap-3 rounded-full bg-ink pl-6 pr-2 py-2 text-sm font-semibold text-white transition hover:bg-leaf-700"
               >
-                <span className="hero-shine absolute inset-0" aria-hidden />
-                <span className="relative">Shop the range</span>
-                <span className="relative flex items-center justify-center w-6 h-6 rounded-full bg-white/15 transition group-hover:translate-x-0.5">
-                  <ArrowRightIcon className="w-3.5 h-3.5" />
+                Shop the range
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-ink transition group-hover:translate-x-0.5">
+                  <ArrowRightIcon className="w-4 h-4" />
                 </span>
-              </button>
-              <button
-                type="button"
-                onClick={onOpenOrderDrawer}
-                className="inline-flex items-center gap-2 px-6 py-4 bg-white hover:bg-sand text-ink text-sm font-semibold rounded-full border border-line transition"
-              >
-                View your order
               </button>
               <button
                 type="button"
                 onClick={onOpenFlyersModal}
-                className="inline-flex items-center gap-1.5 px-2 py-3 text-sm font-medium text-leaf-700 hover:text-leaf-900 underline-offset-4 hover:underline transition"
+                className="text-sm font-semibold text-ink underline decoration-ink/25 decoration-2 underline-offset-[6px] transition hover:decoration-leaf-500"
               >
-                <DownloadIcon className="w-4 h-4" />
-                Price lists
+                Download price lists
               </button>
-            </div>
-
-            <dl className="flex flex-wrap divide-x divide-line border-y border-line max-w-xl">
-              <Stat target={casesInStock} label="cases ready to ship" />
-              <Stat target={PRODUCTS.length} label="product lines" />
-              <Stat target={44} prefix="up to " suffix="%" label="retail margin" />
-            </dl>
-
-            <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-stone-600">
-              <li className="flex items-center gap-2">
-                <ShieldCheckIcon className="w-4 h-4 text-leaf-600" /> Halal certified lines
-              </li>
-              <li className="flex items-center gap-2">
-                <GlobeIcon className="w-4 h-4 text-leaf-600" /> UK &amp; India delivery
-              </li>
-              <li className="flex items-center gap-2">
-                <BoxIcon className="w-4 h-4 text-leaf-600" /> Low MOQ
-              </li>
-            </ul>
-          </div>
-
-          {/* ───────────── Showcase ───────────── */}
-          <div
-            className="lg:col-span-5 hero-rise [animation-delay:150ms]"
-            onMouseEnter={() => setPaused(true)}
-            onMouseLeave={() => setPaused(false)}
-          >
-            <div className="relative mx-auto max-w-[560px] aspect-square">
-              {/* dark stage */}
-              <div className="absolute inset-[6%] rounded-[2.5rem] bg-gradient-to-br from-leaf-800 via-leaf-900 to-ink shadow-lift overflow-hidden">
-                <div className="absolute inset-0 hero-dots-light opacity-40" />
-                <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-leaf-500/30 blur-3xl" />
-                <div className="absolute -bottom-24 -left-16 w-72 h-72 rounded-full bg-amber-400/20 blur-3xl" />
-              </div>
-
-              {/* rotating dashed orbit */}
-              <div className="absolute inset-[14%] rounded-full border-2 border-dashed border-white/15 hero-spin" />
-
-              {/* featured product spotlight */}
-              <div className="absolute inset-[22%] rounded-full bg-cream shadow-lift ring-8 ring-white/10 overflow-hidden">
-                {featured.map((p, i) => (
-                  <Image
-                    key={p.id}
-                    src={p.image}
-                    alt={p.name}
-                    fill
-                    sizes="320px"
-                    priority={i === 0}
-                    className={`object-contain p-[12%] mix-blend-multiply transition-all duration-700 ${
-                      i === active ? "opacity-100 scale-100" : "opacity-0 scale-90"
-                    }`}
-                  />
-                ))}
-              </div>
-
-              {/* orbiting thumbnails */}
-              {orbit.map((p, i) => {
-                const pos = [
-                  "top-[1%] left-[4%]",
-                  "top-[12%] -right-[2%]",
-                  "bottom-[22%] -right-[3%]",
-                  "bottom-[24%] -left-[3%]",
-                ][i];
-                return (
-                  <div
-                    key={p.id}
-                    className={`absolute ${pos} w-[21%] aspect-square rounded-2xl bg-white shadow-lift p-1 hero-float`}
-                    style={{ animationDelay: `${i * -1.4}s` }}
-                  >
-                    <div className="relative w-full h-full">
-                      <Image src={p.image} alt="" fill sizes="96px" className="object-contain mix-blend-multiply" />
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* halal sticker */}
-              <div className="absolute top-[30%] -left-2 sm:-left-4 flex items-center gap-1.5 rounded-full bg-amber-300 text-ink px-3.5 py-1.5 text-xs font-semibold shadow-soft -rotate-6">
-                <LeafIcon className="w-3.5 h-3.5 text-leaf-700" />
-                Halal &amp; veg options
-              </div>
-
-              {/* live product card */}
-              <div className="absolute left-1/2 -translate-x-1/2 bottom-[1%] w-[78%] sm:w-[68%] rounded-2xl bg-white/95 backdrop-blur px-4 py-3 shadow-lift border border-white">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-leaf-600">
-                      <SparklesIcon className="w-3 h-3" /> {current.category}
-                    </p>
-                    <p key={current.id} className="text-sm font-semibold text-ink truncate hero-fade">
-                      {current.name}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="tabular text-sm font-semibold text-ink">{current.inStockCases}</p>
-                    <p className="text-[11px] text-stone-500">cases in stock</p>
-                  </div>
-                </div>
-                <div className="mt-2.5 flex gap-1.5" role="tablist" aria-label="Featured products">
-                  {featured.map((p, i) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={i === active}
-                      aria-label={p.name}
-                      onClick={() => setActive(i)}
-                      className="h-1 flex-1 rounded-full bg-stone-200 overflow-hidden"
-                    >
-                      <span
-                        key={i === active ? `on-${active}` : "off"}
-                        className={`block h-full rounded-full bg-leaf-500 ${
-                          i < active ? "w-full" : i === active ? (paused ? "w-full" : "hero-progress") : "w-0"
-                        }`}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* shipping chip */}
-              <div className="absolute top-[0%] right-[26%] hidden sm:flex items-center gap-2 rounded-full bg-white px-3 py-1.5 shadow-soft text-xs font-medium text-ink">
-                <TruckIcon className="w-3.5 h-3.5 text-leaf-600" />
-                Pallets from Luton
-              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* category marquee */}
-      <div className="relative border-y border-line bg-white/70 backdrop-blur overflow-hidden">
-        <div className="flex w-max hero-marquee py-3.5">
-          {[0, 1].map((copy) => (
-            <ul key={copy} aria-hidden={copy === 1} className="flex shrink-0 items-center">
-              {marqueeItems.map((item) => (
-                <li key={item} className="flex items-center gap-6 pr-6 text-sm font-medium text-stone-600 whitespace-nowrap">
-                  {item}
-                  <LeafIcon className="w-3.5 h-3.5 text-leaf-400" />
-                </li>
-              ))}
-            </ul>
-          ))}
+      {/* ───────────── The shelf ───────────── */}
+      <div className="relative mt-10 sm:mt-14 overflow-x-auto no-scrollbar snap-x snap-mandatory">
+        {/* shelf top + front rail, full-bleed, behind the tickets */}
+        <div aria-hidden className="pointer-events-none absolute bottom-0 left-0 min-w-full w-[1112px] h-[158px]">
+          <div className="h-4 shelf-top" />
+          <div className="h-[142px] bg-ink shelf-rail" />
         </div>
+        <div className="relative min-w-[1080px] max-w-7xl mx-auto px-4 sm:px-6">
+
+          <ul className="relative grid grid-cols-8">
+            {items.map(({ product, src, w, h, height, tag }, i) => (
+              <li key={product.id} className="snap-start">
+                <button
+                  type="button"
+                  onClick={() => onSelectProduct(product)}
+                  className="group flex w-full flex-col items-center px-2 text-left focus-visible:outline-none"
+                  aria-label={`${product.name}, ${money(casePrice(product, currency), currency)} per case`}
+                >
+                  {/* pack */}
+                  <div className="relative flex h-[220px] w-full items-end justify-center">
+                    <span className="absolute bottom-0 h-3 w-3/4 rounded-[50%] bg-ink/25 blur-md" aria-hidden />
+                    <span className="relative flex max-w-full shelf-drop" style={{ animationDelay: `${120 + i * 60}ms` }}>
+                      <Image
+                        src={src}
+                        alt=""
+                        width={w}
+                        height={h}
+                        sizes="180px"
+                        priority
+                        style={{ height }}
+                        className="w-auto max-w-full object-contain transition duration-300 ease-out group-hover:-translate-y-2 pack-shadow"
+                      />
+                    </span>
+                  </div>
+
+                  {/* shelf-edge ticket */}
+                  <div className="mt-4 mb-[14px] w-full max-w-[148px] h-[126px] flex flex-col rounded-[3px] bg-white px-2.5 pt-2 pb-1.5 text-ink ticket-shadow transition group-hover:-translate-y-0.5 group-focus-visible:ring-2 group-focus-visible:ring-leaf-400">
+                    <div className="flex items-center justify-between gap-1 text-[9px] font-semibold uppercase tracking-wider text-stone-400 whitespace-nowrap">
+                      <span className="truncate">{product.sku}</span>
+                      {tag && <span className="shrink-0 rounded-sm bg-amber-300 px-1 text-ink">{tag}</span>}
+                    </div>
+                    <p className="mt-0.5 line-clamp-2 text-[11px] font-medium leading-tight">{product.name}</p>
+                    <p className="mt-auto flex items-baseline gap-1">
+                      <span className="tabular text-xl font-bold tracking-tight">
+                        {money(casePrice(product, currency), currency)}
+                      </span>
+                      <span className="text-[10px] text-stone-500">/ case</span>
+                    </p>
+                    <p className="text-[10px] text-stone-500 -mt-0.5">{product.packing}</p>
+                    <div className="mt-1 text-ink">
+                      <Barcode code={product.barcode} />
+                    </div>
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-between gap-3 py-5 text-xs text-stone-500">
+        <span>Case prices ex-VAT · tap any ticket for specs, MOQ &amp; stock</span>
+        <button
+          type="button"
+          onClick={onScrollToCatalog}
+          className="inline-flex items-center gap-1.5 font-semibold text-ink hover:text-leaf-700"
+        >
+          See all {PRODUCTS.length} lines <ArrowRightIcon className="w-3.5 h-3.5" />
+        </button>
       </div>
     </section>
   );
