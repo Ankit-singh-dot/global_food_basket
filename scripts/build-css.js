@@ -23,7 +23,7 @@ const candidates = new Set();
 
 files.forEach((f) => {
   const content = fs.readFileSync(f, 'utf-8');
-  const tokens = content.match(/[a-zA-Z0-9_\-\/\[\]\:\.\%]+/g) || [];
+  const tokens = content.match(/[a-zA-Z0-9_\-\/\[\]\:\.\%#\(\),]+/g) || [];
   tokens.forEach((t) => {
     if (t.length > 1 && !t.includes('{') && !t.includes('}')) {
       candidates.add(t);
@@ -94,23 +94,19 @@ body {
   scrollbar-width: none;
 }
 
-/* ── Hero shelf ── */
-@keyframes shelf-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-@keyframes shelf-drop { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
-.shelf-in { animation: shelf-in 0.7s cubic-bezier(.2,.7,.2,1) both; }
-.shelf-drop { animation: shelf-drop 0.55s cubic-bezier(.3,1.4,.5,1) both; }
-.shelf-top {
-  background: linear-gradient(to bottom, #ebe4d4, #d3c8b0);
-  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 100%, 0 100%);
-}
-.shelf-rail {
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14), 0 26px 40px -22px rgb(22 22 22 / 0.6);
-  background-image: linear-gradient(to bottom, #232120, #141312);
-}
-.pack-shadow { filter: drop-shadow(0 8px 10px rgb(22 22 22 / 0.18)); }
-.ticket-shadow { box-shadow: 0 1px 0 rgb(0 0 0 / 0.5), 0 0 0 1px rgb(0 0 0 / 0.04); }
+/* ── Hero slider ── */
+.hero-frame { height: 880px; }
+@media (min-width: 640px) { .hero-frame { height: 980px; } }
+@media (min-width: 1024px) { .hero-frame { height: min(calc(100vh - 136px), 740px); min-height: 620px; } }
+.hero-type-shadow { text-shadow: 0 3px 0 rgb(22 22 22 / 0.14); }
+.hero-pack-shadow { filter: drop-shadow(0 22px 22px rgb(0 0 0 / 0.35)); }
+.globe-spin { transform-origin: 200px 200px; animation: hero-spin 90s linear infinite; }
+.stamp-spin { animation: hero-spin 24s linear infinite; }
+.slide-progress { animation-name: slide-progress; animation-timing-function: linear; animation-fill-mode: forwards; }
+@keyframes hero-spin { to { transform: rotate(360deg); } }
+@keyframes slide-progress { from { width: 0; } to { width: 100%; } }
 @media (prefers-reduced-motion: reduce) {
-  .shelf-in, .shelf-drop { animation: none; }
+  .globe-spin, .stamp-spin, .slide-progress { animation: none; }
 }
 `;
 
