@@ -19,6 +19,15 @@ export const metadata: Metadata = {
   title: "Global Food Basket | Wholesale Biscuits, Cookies & Confectionery",
   description:
     "Global Food Basket supplies biscuits, butter cookies, festive tins and confectionery to retailers and distributors, by the case, pallet or container. Good food has no borders.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/brand/logo.png", type: "image/png" },
+    ],
+    apple: [
+      { url: "/brand/logo.png" },
+    ],
+  },
 };
 
 export default function RootLayout({
