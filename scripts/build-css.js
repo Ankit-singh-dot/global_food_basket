@@ -93,6 +93,44 @@ body {
 .no-scrollbar {
   scrollbar-width: none;
 }
+
+/* ── Hero ── */
+.hero-dots {
+  background-image: radial-gradient(rgb(22 22 22 / 0.09) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse at 70% 40%, black 20%, transparent 70%);
+}
+.hero-dots-light {
+  background-image: radial-gradient(rgb(255 255 255 / 0.25) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+@keyframes hero-rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes hero-float { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-12px) rotate(2deg); } }
+@keyframes hero-spin { to { transform: rotate(360deg); } }
+@keyframes hero-draw { from { stroke-dashoffset: 260; } to { stroke-dashoffset: 0; } }
+@keyframes hero-progress { from { width: 0; } to { width: 100%; } }
+@keyframes hero-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes hero-marquee { to { transform: translateX(-50%); } }
+@keyframes hero-shine { 0%,60% { transform: translateX(-120%) skewX(-20deg); } 100% { transform: translateX(220%) skewX(-20deg); } }
+
+.hero-rise { animation: hero-rise 0.8s cubic-bezier(.2,.7,.2,1) both; }
+.hero-float { animation: hero-float 6s ease-in-out infinite; }
+.hero-spin { animation: hero-spin 60s linear infinite; }
+.hero-draw { stroke-dasharray: 260; animation: hero-draw 1.1s 0.5s ease-out both; }
+.hero-progress { animation: hero-progress 3.2s linear forwards; }
+.hero-fade { animation: hero-fade 0.4s ease-out both; }
+.hero-marquee { animation: hero-marquee 40s linear infinite; }
+.hero-marquee:hover { animation-play-state: paused; }
+.hero-shine::before {
+  content: ""; position: absolute; inset: 0; width: 40%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.25), transparent);
+  animation: hero-shine 3.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-rise, .hero-float, .hero-spin, .hero-draw, .hero-fade, .hero-marquee, .hero-shine::before { animation: none; }
+  .hero-progress { animation: none; width: 100%; }
+}
 `;
 
   const compiled = await compile(baseCss, {
