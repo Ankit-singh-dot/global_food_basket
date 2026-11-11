@@ -205,7 +205,6 @@ export default function Home() {
       />
 
       <HeroBanner
-        currency={currency}
         onScrollToCatalog={scrollToCatalog}
         onOpenFlyersModal={() => setIsFlyersModalOpen(true)}
         onSelectProduct={setSelectedProduct}
